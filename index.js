@@ -53,7 +53,7 @@ AFRAME.registerComponent("gaussian_splatting", {
         console.log(4);
         for (let i = 0; i < centers.length; i++) {
           positions[i * 3] = centers[i].x;
-          positions[i * 3 + 1] = centers[i].y;
+          positions[i * 3 + 1] = -centers[i].y;
           positions[i * 3 + 2] = centers[i].z;
         }
         console.log(5);
@@ -149,9 +149,9 @@ AFRAME.registerComponent("gaussian_splatting", {
       const centers = this.getCenters();
 
       // Ray上に指定半径のsphereを連続生成
-      const sphereRadius = 0.1; // 5cm
-      const sphereStep = 0.25; // 25cm間隔
-      const densityThreshold = 90; // スフィア内に必要な点数
+      const sphereRadius = 0.05; // 5cm
+      const sphereStep = 0.15; // 25cm間隔
+      const densityThreshold = 15; // スフィア内に必要な点数
       for (let t = 0; t < rayLength; t += sphereStep) {
         const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
 
@@ -159,7 +159,19 @@ AFRAME.registerComponent("gaussian_splatting", {
         let count = 0;
         for (let i = 0; i < centers.length; i++) {
           // ここの計算式あってる?
-          if (pos.distanceTo(centers[i]) < sphereRadius) count++;
+          if (pos.distanceTo(centers[i]) < sphereRadius) {
+            count++;
+            // 一致した点のsphereも生成
+            const pointSphere = document.createElement("a-sphere");
+            pointSphere.setAttribute("radius", 0.1);
+            pointSphere.setAttribute("color", "#00FF00");
+            pointSphere.setAttribute(
+              "position",
+              `${centers[i].x} ${-centers[i].y} ${centers[i].z}`
+            );
+            // pointSphere.setAttribute("material", "depthWrite: false");
+            raycastVisual.appendChild(pointSphere);
+          }
         }
         // スフィア生成
         const sphere = document.createElement("a-sphere");
@@ -170,14 +182,16 @@ AFRAME.registerComponent("gaussian_splatting", {
           sphere.setAttribute("color", "#FFFF00");
           sphere.setAttribute("opacity", "0.5");
           sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+          sphere.setAttribute("material", "depthWrite: false");
           raycastVisual.appendChild(sphere);
           break;
         } else {
           sphere.setAttribute("radius", sphereRadius);
           sphere.setAttribute("color", "#FF00FF");
-          sphere.setAttribute("opacity", "0.3");
+          sphere.setAttribute("opacity", "0.1");
           sphere.setAttribute("transparent", "true");
           sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+          sphere.setAttribute("material", "depthWrite: false");
           raycastVisual.appendChild(sphere);
         }
       }

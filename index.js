@@ -137,7 +137,11 @@ AFRAME.registerComponent("gaussian_splatting", {
         rayOrigin,
         rayEnd,
       ]);
-      const rayMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+      const rayMat = new THREE.LineBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.3,
+      });
       const rayLine = new THREE.Line(rayGeom, rayMat);
       raycastVisual.object3D.add(rayLine);
 
@@ -149,6 +153,8 @@ AFRAME.registerComponent("gaussian_splatting", {
         const sphere = document.createElement("a-sphere");
         sphere.setAttribute("radius", sphereRadius);
         sphere.setAttribute("color", "#FF00FF");
+        sphere.setAttribute("opacity", "0.3");
+        sphere.setAttribute("transparent", "true");
         sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
         raycastVisual.appendChild(sphere);
       }

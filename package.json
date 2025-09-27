@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dist": "uglifyjs ./index.js -c  --keep-fnames --source-map --output ./dist/aframe-gaussian-splatting-component.min.js"
+    "build": "uglifyjs ./index.js -c  --keep-fnames --source-map --output ./dist/aframe-gaussian-splatting-component.min.js",
+    "server": "http-server . -p 3000"
   },
   "repository": {
     "type": "git",

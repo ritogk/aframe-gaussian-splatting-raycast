@@ -88,6 +88,27 @@ AFRAME.registerComponent("gaussian_splatting", {
     const renderer = scene.renderer;
     let marker = null;
     scene.addEventListener("click", (event) => {
+      // RaycastボタンがONの時だけ処理実行
+      if (
+        typeof window.raycastEnabled === "undefined" ||
+        !window.raycastEnabled
+      )
+        return;
+
+      // THREE参照
+      const THREE = window.THREE;
+      // Raycast可視化用エンティティ取得・初期化
+      let raycastVisual = document.getElementById("raycast-visual");
+      if (!raycastVisual) {
+        raycastVisual = document.createElement("a-entity");
+        raycastVisual.setAttribute("id", "raycast-visual");
+        scene.appendChild(raycastVisual);
+      }
+      // 既存可視化オブジェクト削除
+      while (raycastVisual.object3D.children.length > 0) {
+        raycastVisual.object3D.remove(raycastVisual.object3D.children[0]);
+      }
+
       // マウス座標を正規化
       const mouse = new THREE.Vector2();
       if (event.touches && event.touches.length > 0) {
@@ -101,6 +122,37 @@ AFRAME.registerComponent("gaussian_splatting", {
       // Raycaster生成
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, camera);
+
+      // Rayの始点・方向
+      const rayOrigin = raycaster.ray.origin.clone();
+      const rayDir = raycaster.ray.direction.clone().normalize();
+      // 可視化用Ray長さ
+      const rayLength = 2.0; // 2m
+      const rayEnd = rayOrigin
+        .clone()
+        .add(rayDir.clone().multiplyScalar(rayLength));
+
+      // Ray可視化（線分）
+      const rayGeom = new THREE.BufferGeometry().setFromPoints([
+        rayOrigin,
+        rayEnd,
+      ]);
+      const rayMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+      const rayLine = new THREE.Line(rayGeom, rayMat);
+      raycastVisual.object3D.add(rayLine);
+
+      // Ray上に指定半径のsphereを連続生成
+      const sphereRadius = 0.05; // 5cm
+      const sphereStep = 0.15; // 15cm間隔
+      for (let t = 0; t < rayLength; t += sphereStep) {
+        const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
+        const sphere = document.createElement("a-sphere");
+        sphere.setAttribute("radius", sphereRadius);
+        sphere.setAttribute("color", "#FF00FF");
+        sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+        raycastVisual.appendChild(sphere);
+      }
+
       // centers取得
       const centers = this.getCenters();
       if (!centers || centers.length === 0) return;

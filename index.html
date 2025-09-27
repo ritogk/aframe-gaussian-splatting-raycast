@@ -5,9 +5,21 @@
     <script src="./index.js"></script>
     <style>
       /* 右上にボタンを配置 */
-      #toggle-btn {
+      #toggle-splat-btn {
         position: fixed;
         top: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 10px 20px;
+        background: #222;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      #toggle-pc-btn {
+        position: fixed;
+        top: 60px;
         right: 20px;
         z-index: 1000;
         padding: 10px 20px;
@@ -20,7 +32,8 @@
     </style>
   </head>
   <body>
-    <button id="toggle-btn">表示/非表示</button>
+    <button id="toggle-splat-btn">Gaussian表示/非表示</button>
+    <button id="toggle-pc-btn">点群表示/非表示</button>
     <a-scene renderer="antialias: false" stats>
       <a-entity
         id="splat-entity"
@@ -38,12 +51,20 @@
       <a-sky color="#000"></a-sky>
     </a-scene>
     <script>
-      // ボタンで可視性を切り替える
-      const btn = document.getElementById("toggle-btn");
-      const entity = document.getElementById("splat-entity");
-      btn.addEventListener("click", () => {
-        const isVisible = entity.getAttribute("visible");
-        entity.setAttribute("visible", !isVisible);
+      // Gaussian表示/非表示ボタン
+      const splatBtn = document.getElementById("toggle-splat-btn");
+      const splatEntity = document.getElementById("splat-entity");
+      splatBtn.addEventListener("click", () => {
+        const isVisible = splatEntity.getAttribute("visible");
+        splatEntity.setAttribute("visible", !isVisible);
+      });
+
+      // 点群表示/非表示ボタン
+      const pcBtn = document.getElementById("toggle-pc-btn");
+      const pointCloudEntity = document.getElementById("point-cloud-entity");
+      pcBtn.addEventListener("click", () => {
+        const isVisible = pointCloudEntity.getAttribute("visible");
+        pointCloudEntity.setAttribute("visible", !isVisible);
       });
     </script>
   </body>

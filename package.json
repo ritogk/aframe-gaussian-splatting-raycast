@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/quadjr/aframe-gaussian-splatting#readme",
   "dependencies": {
+    "http-server": "^14.1.1",
     "uglify-js": "^3.17.4"
   }
 }

@@ -65,7 +65,7 @@ AFRAME.registerComponent("gaussian_splatting", {
         console.log(6);
         const material = new THREE.PointsMaterial({
           color: 0x0000ff,
-          size: 0.02,
+          size: 0.001,
           opacity: 1.0,
           transparent: false,
         });
@@ -127,7 +127,7 @@ AFRAME.registerComponent("gaussian_splatting", {
       const rayOrigin = raycaster.ray.origin.clone();
       const rayDir = raycaster.ray.direction.clone().normalize();
       // 可視化用Ray長さ
-      const rayLength = 2.0; // 2m
+      const rayLength = 10.0; // 10m
       const rayEnd = rayOrigin
         .clone()
         .add(rayDir.clone().multiplyScalar(rayLength));
@@ -145,99 +145,40 @@ AFRAME.registerComponent("gaussian_splatting", {
       const rayLine = new THREE.Line(rayGeom, rayMat);
       raycastVisual.object3D.add(rayLine);
 
-      // Ray上に指定半径のsphereを連続生成
-      const sphereRadius = 0.05; // 5cm
-      const sphereStep = 0.15; // 15cm間隔
-      for (let t = 0; t < rayLength; t += sphereStep) {
-        const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
-        const sphere = document.createElement("a-sphere");
-        sphere.setAttribute("radius", sphereRadius);
-        sphere.setAttribute("color", "#FF00FF");
-        sphere.setAttribute("opacity", "0.3");
-        sphere.setAttribute("transparent", "true");
-        sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
-        raycastVisual.appendChild(sphere);
-      }
-
       // centers取得
       const centers = this.getCenters();
-      if (!centers || centers.length === 0) return;
-      // 最近傍探索
-      let minDist = Infinity;
-      let nearest = null;
 
-      for (let i = 0; i < centers.length; i++) {
-        // Rayと点の最近傍距離
-        const center = centers[i];
-        const proj = new THREE.Vector3();
-        raycaster.ray.closestPointToPoint(center, proj);
-        const dist = proj.distanceTo(center);
-        if (dist < minDist) {
-          minDist = dist;
-          nearest = center;
-        }
-      }
-      if (nearest) {
-        // 周囲の点の密度判定
-        const densityRadius = 0.05; // 半径[m]
-        const densityThreshold = 5; // この数以上なら配置
+      // Ray上に指定半径のsphereを連続生成
+      const sphereRadius = 0.1; // 5cm
+      const sphereStep = 0.25; // 25cm間隔
+      const densityThreshold = 90; // スフィア内に必要な点数
+      for (let t = 0; t < rayLength; t += sphereStep) {
+        const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
+
+        // スフィア内の点数をカウント
         let count = 0;
         for (let i = 0; i < centers.length; i++) {
-          if (centers[i] === nearest) continue;
-          if (centers[i].distanceTo(nearest) < densityRadius) count++;
+          // ここの計算式あってる?
+          if (pos.distanceTo(centers[i]) < sphereRadius) count++;
         }
-        // ログ出力
-        console.log(
-          "最近傍スプラット心点:",
-          nearest.x,
-          nearest.y,
-          nearest.z,
-          "周囲点数:",
-          count
-        );
+        // スフィア生成
+        const sphere = document.createElement("a-sphere");
+        console.log("sphere内の点数:", count);
+        // 指定数以上ならbreak
         if (count >= densityThreshold) {
-          // 既存マーカー削除
-          if (marker && marker.parent) marker.parent.remove(marker);
-          // 既存周辺点マーカー削除
-          if (this._densityMarkers) {
-            this._densityMarkers.forEach((m) => {
-              if (m.parent) m.parent.remove(m);
-            });
-          }
-          this._densityMarkers = [];
-          // 目印生成
-          marker = document.createElement("a-sphere");
-          marker.setAttribute("radius", "0.03");
-          marker.setAttribute("color", "#00FF00");
-          marker.setAttribute(
-            "position",
-            `${nearest.x} ${nearest.y} ${nearest.z}`
-          );
-          scene.appendChild(marker);
-          // 周辺点に色付きマーカー配置
-          for (let i = 0; i < centers.length; i++) {
-            if (centers[i] === nearest) continue;
-            if (centers[i].distanceTo(nearest) < densityRadius) {
-              const dmarker = document.createElement("a-sphere");
-              dmarker.setAttribute("radius", "0.01");
-              dmarker.setAttribute("color", "#FF8800");
-              dmarker.setAttribute(
-                "position",
-                `${centers[i].x} ${centers[i].y} ${centers[i].z}`
-              );
-              scene.appendChild(dmarker);
-              this._densityMarkers.push(dmarker);
-            }
-          }
+          sphere.setAttribute("radius", sphereRadius);
+          sphere.setAttribute("color", "#FFFF00");
+          sphere.setAttribute("opacity", "0.5");
+          sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+          raycastVisual.appendChild(sphere);
+          break;
         } else {
-          // 密度が足りない場合はマーカー非表示
-          if (marker && marker.parent) marker.parent.remove(marker);
-          if (this._densityMarkers) {
-            this._densityMarkers.forEach((m) => {
-              if (m.parent) m.parent.remove(m);
-            });
-          }
-          this._densityMarkers = [];
+          sphere.setAttribute("radius", sphereRadius);
+          sphere.setAttribute("color", "#FF00FF");
+          sphere.setAttribute("opacity", "0.3");
+          sphere.setAttribute("transparent", "true");
+          sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+          raycastVisual.appendChild(sphere);
         }
       }
     });

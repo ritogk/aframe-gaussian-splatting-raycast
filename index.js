@@ -50,11 +50,33 @@ AFRAME.registerComponent("gaussian_splatting", {
         const centers = this.getCenters();
         if (!centers || centers.length === 0) return;
         const positions = new Float32Array(centers.length * 3);
+        const colors = new Float32Array(centers.length * 3);
+        // 原点からの最大距離を計算
+        let maxDist = 0;
+        for (let i = 0; i < centers.length; i++) {
+          const dist = Math.sqrt(
+            centers[i].x * centers[i].x +
+              centers[i].y * centers[i].y +
+              centers[i].z * centers[i].z
+          );
+          if (dist > maxDist) maxDist = dist;
+        }
         console.log(4);
         for (let i = 0; i < centers.length; i++) {
           positions[i * 3] = centers[i].x;
-          positions[i * 3 + 1] = -centers[i].y;
+          positions[i * 3 + 1] = centers[i].y;
           positions[i * 3 + 2] = centers[i].z;
+          // 原点からの距離を0~1に正規化
+          const dist = Math.sqrt(
+            centers[i].x * centers[i].x +
+              centers[i].y * centers[i].y +
+              centers[i].z * centers[i].z
+          );
+          const norm = dist / (maxDist + 1e-6);
+          // R→G→Bグラデーション
+          colors[i * 3] = Math.max(0, 1 - norm * 2); // R: 0~1→1~0
+          colors[i * 3 + 1] = norm < 0.5 ? norm * 2 : (1 - norm) * 2; // G: 0~0.5→0~1, 0.5~1→1~0
+          colors[i * 3 + 2] = Math.max(0, norm * 2 - 1); // B: 0~0.5→0, 0.5~1→0~1
         }
         console.log(5);
         const geometry = new THREE.BufferGeometry();
@@ -62,12 +84,14 @@ AFRAME.registerComponent("gaussian_splatting", {
           "position",
           new THREE.BufferAttribute(positions, 3)
         );
+        geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
         console.log(6);
+        // Z値で色分け
         const material = new THREE.PointsMaterial({
-          color: 0x0000ff,
           size: 0.001,
-          opacity: 1.0,
-          transparent: false,
+          opacity: 0.7,
+          transparent: true,
+          vertexColors: true,
         });
         const points = new THREE.Points(geometry, material);
         console.log(7);
@@ -76,7 +100,6 @@ AFRAME.registerComponent("gaussian_splatting", {
         if (pointCloudEntity) {
           pointCloudEntity.object3D.add(points);
         }
-        // this.el.object3D.add(points);
         this._centerPointsObj = points;
         console.log(8);
       };
@@ -148,51 +171,60 @@ AFRAME.registerComponent("gaussian_splatting", {
       // centers取得
       const centers = this.getCenters();
 
-      // Ray上に指定半径のsphereを連続生成
-      const sphereRadius = 0.05; // 5cm
-      const sphereStep = 0.15; // 25cm間隔
-      const densityThreshold = 15; // スフィア内に必要な点数
-      for (let t = 0; t < rayLength; t += sphereStep) {
+      // Ray上に指定サイズのbox（正方形）を連続生成
+      const boxSize = 0.2;
+      const boxStep = 0.1;
+      const densityThreshold = 15;
+      for (let t = 0; t < rayLength; t += boxStep) {
         const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
 
-        // スフィア内の点数をカウント
+        // box生成
+        const box = document.createElement("a-box");
+        box.setAttribute("width", boxSize);
+        box.setAttribute("height", boxSize);
+        box.setAttribute("depth", boxSize);
+        box.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+
+        // box内の点数をカウント
         let count = 0;
         for (let i = 0; i < centers.length; i++) {
-          // ここの計算式あってる?
-          if (pos.distanceTo(centers[i]) < sphereRadius) {
+          const x = centers[i].x;
+          const y = centers[i].y;
+          const z = centers[i].z;
+          // ✨️ここがあっているか
+          if (
+            Math.abs(pos.x - x) < boxSize / 2 &&
+            Math.abs(pos.y - y) < boxSize / 2 &&
+            Math.abs(pos.z - z) < boxSize / 2
+          ) {
             count++;
-            // 一致した点のsphereも生成
-            const pointSphere = document.createElement("a-sphere");
-            pointSphere.setAttribute("radius", 0.1);
-            pointSphere.setAttribute("color", "#00FF00");
-            pointSphere.setAttribute(
-              "position",
-              `${centers[i].x} ${-centers[i].y} ${centers[i].z}`
-            );
-            // pointSphere.setAttribute("material", "depthWrite: false");
-            raycastVisual.appendChild(pointSphere);
+            // 一致した点のboxも生成
+            const pointBox = document.createElement("a-box");
+            pointBox.setAttribute("width", 0.03);
+            pointBox.setAttribute("height", 0.03);
+            pointBox.setAttribute("depth", 0.04);
+            pointBox.setAttribute("color", "#ff00ff");
+            // pointBox.setAttribute("opacity", "0.5");
+            pointBox.setAttribute("material", "depthWrite: false");
+            pointBox.setAttribute("position", `${x} ${y} ${z}`);
+            raycastVisual.appendChild(pointBox);
           }
         }
-        // スフィア生成
-        const sphere = document.createElement("a-sphere");
-        console.log("sphere内の点数:", count);
+
+        console.log("box内の点数:", count);
         // 指定数以上ならbreak
         if (count >= densityThreshold) {
-          sphere.setAttribute("radius", sphereRadius);
-          sphere.setAttribute("color", "#FFFF00");
-          sphere.setAttribute("opacity", "0.5");
-          sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
-          sphere.setAttribute("material", "depthWrite: false");
-          raycastVisual.appendChild(sphere);
+          box.setAttribute("material", "depthWrite: false");
+          box.setAttribute("color", "#ff0000");
+          box.setAttribute("opacity", "0.5");
+          raycastVisual.appendChild(box);
           break;
         } else {
-          sphere.setAttribute("radius", sphereRadius);
-          sphere.setAttribute("color", "#FF00FF");
-          sphere.setAttribute("opacity", "0.1");
-          sphere.setAttribute("transparent", "true");
-          sphere.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
-          sphere.setAttribute("material", "depthWrite: false");
-          raycastVisual.appendChild(sphere);
+          box.setAttribute("color", "#ff00ff");
+          box.setAttribute("opacity", "0.2");
+          box.setAttribute("transparent", "true");
+          box.setAttribute("material", "depthWrite: false");
+          raycastVisual.appendChild(box);
         }
       }
     });

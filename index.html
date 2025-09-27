@@ -2,7 +2,7 @@
 <html>
   <head>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="./index.js"></script>
+    <script src="./index.js?version=" + Date.now()></script>
     <style>
       /* 右上にボタンを配置 */
       #toggle-splat-btn {
@@ -82,6 +82,7 @@
 
       // Raycast ON/OFFボタン
       const raycastBtn = document.getElementById("raycast-toggle-btn");
+      window.raycastEnabled = true; // 初期値ON
       raycastBtn.addEventListener("click", () => {
         window.raycastEnabled = !window.raycastEnabled;
         raycastBtn.textContent = window.raycastEnabled

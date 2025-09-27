@@ -26,6 +26,61 @@ AFRAME.registerComponent("gaussian_splatting", {
       if (!!this.data.cutoutEntity) {
         this.cutout = this.data.cutoutEntity.object3D;
       }
+      // Gaussianモデルを透明に、点はTHREE.Pointsで高速描画
+      const setTransparency = () => {
+        console.log("setTransparency");
+        console.log(1);
+        // Gaussian meshを透明に
+        if (this.object && this.object.children) {
+          this.object.children.forEach((child) => {
+            if (child instanceof THREE.Mesh && child.material) {
+              child.material.transparent = true;
+              child.material.opacity = 0.2;
+              child.material.needsUpdate = true;
+            }
+          });
+        }
+        console.log(2);
+        // 既存の点群オブジェクト削除
+        if (this._centerPointsObj && this._centerPointsObj.parent) {
+          this._centerPointsObj.parent.remove(this._centerPointsObj);
+        }
+        console.log(3);
+        // centers点群をTHREE.Pointsで描画
+        const centers = this.getCenters();
+        if (!centers || centers.length === 0) return;
+        const positions = new Float32Array(centers.length * 3);
+        console.log(4);
+        for (let i = 0; i < centers.length; i++) {
+          positions[i * 3] = centers[i].x;
+          positions[i * 3 + 1] = centers[i].y;
+          positions[i * 3 + 2] = centers[i].z;
+        }
+        console.log(5);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3)
+        );
+        console.log(6);
+        const material = new THREE.PointsMaterial({
+          color: 0x0000ff,
+          size: 0.02,
+          opacity: 1.0,
+          transparent: false,
+        });
+        const points = new THREE.Points(geometry, material);
+        console.log(7);
+        // id=point-cloud-entityのエンティティに追加
+        const pointCloudEntity = document.getElementById("point-cloud-entity");
+        if (pointCloudEntity) {
+          pointCloudEntity.object3D.add(points);
+        }
+        // this.el.object3D.add(points);
+        this._centerPointsObj = points;
+        console.log(8);
+      };
+      setTimeout(setTransparency, 10000);
     });
     // クリックでRaycastし、最近傍スプラット中心点に目印を置く
     const scene = this.el.sceneEl;

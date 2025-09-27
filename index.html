@@ -2,16 +2,49 @@
 <html>
   <head>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="./dist/aframe-gaussian-splatting-component.min.js"></script>
+    <script src="./index.js"></script>
+    <style>
+      /* 右上にボタンを配置 */
+      #toggle-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 10px 20px;
+        background: #222;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
+    <button id="toggle-btn">表示/非表示</button>
     <a-scene renderer="antialias: false" stats>
       <a-entity
+        id="splat-entity"
         gaussian_splatting="src: https://huggingface.co/cakewalk/splat-data/resolve/main/train.splat;"
+        rotation="0 0 0"
+        position="0 1.5 -2"
+        visible="true"
+      ></a-entity>
+      <!-- 点群用のエンティティ -->
+      <a-entity
+        id="point-cloud-entity"
         rotation="0 0 0"
         position="0 1.5 -2"
       ></a-entity>
       <a-sky color="#000"></a-sky>
     </a-scene>
+    <script>
+      // ボタンで可視性を切り替える
+      const btn = document.getElementById("toggle-btn");
+      const entity = document.getElementById("splat-entity");
+      btn.addEventListener("click", () => {
+        const isVisible = entity.getAttribute("visible");
+        entity.setAttribute("visible", !isVisible);
+      });
+    </script>
   </body>
 </html>

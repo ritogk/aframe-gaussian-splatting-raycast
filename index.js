@@ -132,124 +132,46 @@ AFRAME.registerComponent("gaussian_splatting", {
     const renderer = scene.renderer;
     let marker = null;
     scene.addEventListener("click", (event) => {
-      // RaycastボタンがONの時だけ処理実行
-      if (
-        typeof window.raycastEnabled === "undefined" ||
-        !window.raycastEnabled
-      )
-        return;
+      if (!window.raycastEnabled) return;
 
-      // THREE参照
       const THREE = window.THREE;
-      // Raycast可視化用エンティティ取得・初期化
-      let raycastVisual = document.getElementById("raycast-visual");
-      if (!raycastVisual) {
-        raycastVisual = document.createElement("a-entity");
-        raycastVisual.setAttribute("id", "raycast-visual");
-        scene.appendChild(raycastVisual);
-      }
-      // 既存可視化オブジェクト削除
-      while (raycastVisual.object3D.children.length > 0) {
-        raycastVisual.object3D.remove(raycastVisual.object3D.children[0]);
-      }
-
-      // マウス座標を正規化
       const mouse = new THREE.Vector2();
       if (event.touches && event.touches.length > 0) {
-        // タッチ対応
         mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
       } else {
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
       }
-      // Raycaster生成
+
       const raycaster = new THREE.Raycaster();
+      raycaster.params.Points.threshold = 0.05; // ヒット判定の許容範囲（調整必須）
       raycaster.setFromCamera(mouse, camera);
-      // raycaster.params.Points.threshold = 5;
 
-      // Rayの始点・方向
-      const rayOrigin = raycaster.ray.origin.clone();
-      const rayDir = raycaster.ray.direction.clone().normalize();
-      // 可視化用Ray長さ
-      const rayLength = 10.0; // 10m
-      const rayEnd = rayOrigin
-        .clone()
-        .add(rayDir.clone().multiplyScalar(rayLength));
+      if (!this._centerPointsObj) return;
 
-      // Ray可視化（線分）
-      const rayGeom = new THREE.BufferGeometry().setFromPoints([
-        rayOrigin,
-        rayEnd,
-      ]);
-      const rayMat = new THREE.LineBasicMaterial({
-        color: 0xff0000,
-        transparent: true,
-        opacity: 0.3,
-      });
-      const rayLine = new THREE.Line(rayGeom, rayMat);
-      raycastVisual.object3D.add(rayLine);
+      const intersects = raycaster.intersectObject(this._centerPointsObj, true);
 
-      // centers取得
-      // const centers = this.getCenters();
-      const centers = this.getCenters().filter((c) => c.opacity > 0.996);
+      if (intersects.length > 0) {
+        const hit = intersects[0]; // 最近傍
+        const index = hit.index; // 当たった点のインデックス
+        const posAttr = this._centerPointsObj.geometry.attributes.position;
+        const hitPos = new THREE.Vector3(
+          posAttr.getX(index),
+          posAttr.getY(index),
+          posAttr.getZ(index)
+        );
 
-      // Ray上に指定サイズのbox（正方形）を連続生成
-      const boxSize = 0.3;
-      const boxStep = 0.3;
-      const densityThreshold = 10;
-      for (let t = 0; t < rayLength; t += boxStep) {
-        const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
+        console.log("hit point index:", index, "pos:", hitPos);
 
-        // box生成
-        const box = document.createElement("a-box");
-        box.setAttribute("width", boxSize);
-        box.setAttribute("height", boxSize);
-        box.setAttribute("depth", boxSize);
-        box.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
-
-        // box内の点数をカウント
-        let count = 0;
-        for (let i = 0; i < centers.length; i++) {
-          const centerPosition = centers[i].position;
-          const x = centerPosition.x;
-          const y = centerPosition.y;
-          const z = centerPosition.z;
-          // ✨️ここがあっているか
-          if (
-            Math.abs(pos.x - x) < boxSize / 2 &&
-            Math.abs(pos.y - y) < boxSize / 2 &&
-            Math.abs(pos.z - z) < boxSize / 2
-          ) {
-            count++;
-            // 一致した点のboxも生成
-            const pointBox = document.createElement("a-box");
-            pointBox.setAttribute("width", 0.03);
-            pointBox.setAttribute("height", 0.03);
-            pointBox.setAttribute("depth", 0.04);
-            pointBox.setAttribute("color", "#00ff00");
-            // pointBox.setAttribute("opacity", "0.5");
-            // pointBox.setAttribute("material", "depthWrite: false");
-            pointBox.setAttribute("position", `${x} ${y} ${z}`);
-            raycastVisual.appendChild(pointBox);
-          }
+        // 可視化用にマーカーを置く
+        if (!marker) {
+          const geom = new THREE.SphereGeometry(0.05, 16, 16);
+          const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+          marker = new THREE.Mesh(geom, mat);
+          scene.object3D.add(marker);
         }
-
-        console.log("box内の点数:", count);
-        // 指定数以上ならbreak
-        if (count >= densityThreshold) {
-          box.setAttribute("material", "depthWrite: false");
-          box.setAttribute("color", "#ff0000");
-          box.setAttribute("opacity", "0.5");
-          raycastVisual.appendChild(box);
-          break;
-        } else {
-          box.setAttribute("color", "#ff00ff");
-          box.setAttribute("opacity", "0.2");
-          box.setAttribute("transparent", "true");
-          box.setAttribute("material", "depthWrite: false");
-          raycastVisual.appendChild(box);
-        }
+        marker.position.copy(hitPos);
       }
     });
   },

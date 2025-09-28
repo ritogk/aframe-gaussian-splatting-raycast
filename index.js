@@ -215,7 +215,7 @@ AFRAME.registerComponent("gaussian_splatting", {
             pointBox.setAttribute("depth", 0.04);
             pointBox.setAttribute("color", "#00ff00");
             // pointBox.setAttribute("opacity", "0.5");
-            pointBox.setAttribute("material", "depthWrite: false");
+            // pointBox.setAttribute("material", "depthWrite: false");
             pointBox.setAttribute("position", `${x} ${y} ${z}`);
             raycastVisual.appendChild(pointBox);
           }
@@ -643,7 +643,9 @@ AFRAME.registerComponent("gaussian_splatting", {
         -f_buffer[8 * i + 2]
       );
       // 中心点を保存
-      this.centers.push(center.clone());
+      const adjustedCenter = center.clone();
+      adjustedCenter.y *= -1; // A-FrameのY軸反転に合わせる
+      this.centers.push(adjustedCenter);
       let scale = new THREE.Vector3(
         f_buffer[8 * i + 3 + 0],
         f_buffer[8 * i + 3 + 1],

@@ -54,23 +54,25 @@ AFRAME.registerComponent("gaussian_splatting", {
         // 原点からの最大距離を計算
         let maxDist = 0;
         for (let i = 0; i < centers.length; i++) {
+          const centerPosition = centers[i].position;
           const dist = Math.sqrt(
-            centers[i].x * centers[i].x +
-              centers[i].y * centers[i].y +
-              centers[i].z * centers[i].z
+            centerPosition.x * centerPosition.x +
+              centerPosition.y * centerPosition.y +
+              centerPosition.z * centerPosition.z
           );
           if (dist > maxDist) maxDist = dist;
         }
         console.log(4);
         for (let i = 0; i < centers.length; i++) {
-          positions[i * 3] = centers[i].x;
-          positions[i * 3 + 1] = centers[i].y;
-          positions[i * 3 + 2] = centers[i].z;
+          const centerPosition = centers[i].position;
+          positions[i * 3] = centerPosition.x;
+          positions[i * 3 + 1] = centerPosition.y;
+          positions[i * 3 + 2] = centerPosition.z;
           // 原点からの距離を0~1に正規化
           const dist = Math.sqrt(
-            centers[i].x * centers[i].x +
-              centers[i].y * centers[i].y +
-              centers[i].z * centers[i].z
+            centerPosition.x * centerPosition.x +
+              centerPosition.y * centerPosition.y +
+              centerPosition.z * centerPosition.z
           );
           const norm = dist / (maxDist + 1e-6);
           // R→G→Bグラデーション
@@ -642,10 +644,14 @@ AFRAME.registerComponent("gaussian_splatting", {
         f_buffer[8 * i + 1],
         -f_buffer[8 * i + 2]
       );
-      // 中心点を保存
+      // 中心点と透明度を保存
       const adjustedCenter = center.clone();
       adjustedCenter.y *= -1; // A-FrameのY軸反転に合わせる
-      this.centers.push(adjustedCenter);
+      const opacity = u_buffer[32 * i + 24 + 3] / 255.0; // RGBAのA成分
+      this.centers.push({ position: adjustedCenter, opacity: opacity });
+
+      // console.log(center, opacity);
+
       let scale = new THREE.Vector3(
         f_buffer[8 * i + 3 + 0],
         f_buffer[8 * i + 3 + 1],

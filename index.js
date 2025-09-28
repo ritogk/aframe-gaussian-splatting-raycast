@@ -103,7 +103,16 @@ AFRAME.registerComponent("gaussian_splatting", {
         this._centerPointsObj = points;
         console.log(8);
       };
-      setTimeout(setTransparency, 10000);
+      // setTimeout(setTransparency, 30000);
+      // window.gaussianCompletedを監視してtrueになったら実行
+      const checkCompletion = () => {
+        if (window.gaussianCompleted) {
+          setTransparency();
+        } else {
+          setTimeout(checkCompletion, 1000);
+        }
+      };
+      checkCompletion();
     });
     // クリックでRaycastし、最近傍スプラット中心点に目印を置く
     const scene = this.el.sceneEl;
@@ -145,6 +154,7 @@ AFRAME.registerComponent("gaussian_splatting", {
       // Raycaster生成
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, camera);
+      // raycaster.params.Points.threshold = 5;
 
       // Rayの始点・方向
       const rayOrigin = raycaster.ray.origin.clone();
@@ -172,9 +182,9 @@ AFRAME.registerComponent("gaussian_splatting", {
       const centers = this.getCenters();
 
       // Ray上に指定サイズのbox（正方形）を連続生成
-      const boxSize = 0.2;
-      const boxStep = 0.1;
-      const densityThreshold = 15;
+      const boxSize = 0.6;
+      const boxStep = 0.2;
+      const densityThreshold = 5;
       for (let t = 0; t < rayLength; t += boxStep) {
         const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
 
@@ -203,7 +213,7 @@ AFRAME.registerComponent("gaussian_splatting", {
             pointBox.setAttribute("width", 0.03);
             pointBox.setAttribute("height", 0.03);
             pointBox.setAttribute("depth", 0.04);
-            pointBox.setAttribute("color", "#ff00ff");
+            pointBox.setAttribute("color", "#00ff00");
             // pointBox.setAttribute("opacity", "0.5");
             pointBox.setAttribute("material", "depthWrite: false");
             pointBox.setAttribute("position", `${x} ${y} ${z}`);
@@ -504,11 +514,13 @@ AFRAME.registerComponent("gaussian_splatting", {
       let lastReportedProgress = 0;
       let isPly = src.endsWith(".ply");
 
+      window.gaussianCompleted = false;
       while (true) {
         try {
           const { value, done } = await reader.read();
           if (done) {
             console.log("Completed download.");
+            window.gaussianCompleted = true;
             break;
           }
           bytesDownloaded += value.length;

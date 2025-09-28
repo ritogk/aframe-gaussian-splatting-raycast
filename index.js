@@ -131,22 +131,6 @@ AFRAME.registerComponent("gaussian_splatting", {
     const camera = scene.camera;
     const renderer = scene.renderer;
     let marker = null;
-
-    // クリックイベントの外（初期化時など）で一度だけ作って scene に追加しておく
-    const boxGeometry = new THREE.BoxGeometry(0.003, 0.003, 0.003);
-    const boxMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    // 最大数は centers.length とか十分大きめにしておく
-    const maxBoxes = 5000000; // 適宜調整
-    const instancedMesh = new THREE.InstancedMesh(
-      boxGeometry,
-      boxMaterial,
-      maxBoxes
-    );
-    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    // raycastVisual.object3D.add(instancedMesh);
-
-    // 追加用のカウンタをグローバルに保持
-    let instanceIndex = 0;
     scene.addEventListener("click", (event) => {
       // RaycastボタンがONの時だけ処理実行
       if (
@@ -163,19 +147,11 @@ AFRAME.registerComponent("gaussian_splatting", {
         raycastVisual = document.createElement("a-entity");
         raycastVisual.setAttribute("id", "raycast-visual");
         scene.appendChild(raycastVisual);
-
-        // 一度だけ実行 raycastVisual.object3D.add(instancedMesh);
-        if (!instancedMesh.parent) {
-          raycastVisual.object3D.add(instancedMesh);
-        }
       }
       // 既存可視化オブジェクト削除
-      // while (raycastVisual.object3D.children.length > 0) {
-      //   raycastVisual.object3D.remove(raycastVisual.object3D.children[0]);
-      // }
-      raycastVisual.object3D.children
-        .filter((child) => child !== instancedMesh) // instancedMeshは残す
-        .forEach((child) => raycastVisual.object3D.remove(child));
+      while (raycastVisual.object3D.children.length > 0) {
+        raycastVisual.object3D.remove(raycastVisual.object3D.children[0]);
+      }
 
       // マウス座標を正規化
       const mouse = new THREE.Vector2();
@@ -196,7 +172,7 @@ AFRAME.registerComponent("gaussian_splatting", {
       const rayOrigin = raycaster.ray.origin.clone();
       const rayDir = raycaster.ray.direction.clone().normalize();
       // 可視化用Ray長さ
-      const rayLength = 30.0; // 10m
+      const rayLength = 10.0; // 10m
       const rayEnd = rayOrigin
         .clone()
         .add(rayDir.clone().multiplyScalar(rayLength));
@@ -218,12 +194,10 @@ AFRAME.registerComponent("gaussian_splatting", {
       // const centers = this.getCenters();
       const centers = this.getCenters().filter((c) => c.opacity > 0.996);
 
-      const dummy = new THREE.Object3D();
-
       // Ray上に指定サイズのbox（正方形）を連続生成
-      const boxSize = 0.8;
+      const boxSize = 0.6;
       const boxStep = 0.2;
-      const densityThreshold = 30;
+      const densityThreshold = 5;
       for (let t = 0; t < rayLength; t += boxStep) {
         const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
 
@@ -248,41 +222,35 @@ AFRAME.registerComponent("gaussian_splatting", {
             Math.abs(pos.z - z) < boxSize / 2
           ) {
             count++;
-            // // 一致した点のboxも生成（userData.type="point"を付与）
-            // const pointBox = document.createElement("a-box");
-            // pointBox.setAttribute("width", 0.03);
-            // pointBox.setAttribute("height", 0.03);
-            // pointBox.setAttribute("depth", 0.04);
-            // pointBox.setAttribute("color", "#00ff00");
-            // pointBox.setAttribute("position", `${x} ${y} ${z}`);
-            // pointBox.object3D.userData.type = "point";
-            // raycastVisual.appendChild(pointBox);
-            dummy.position.set(x, y, z);
-            dummy.updateMatrix();
-            instancedMesh.setMatrixAt(instanceIndex, dummy.matrix);
-            instanceIndex++;
+            // 一致した点のboxも生成
+            const pointBox = document.createElement("a-box");
+            pointBox.setAttribute("width", 0.03);
+            pointBox.setAttribute("height", 0.03);
+            pointBox.setAttribute("depth", 0.04);
+            pointBox.setAttribute("color", "#00ff00");
+            // pointBox.setAttribute("opacity", "0.5");
+            // pointBox.setAttribute("material", "depthWrite: false");
+            pointBox.setAttribute("position", `${x} ${y} ${z}`);
+            raycastVisual.appendChild(pointBox);
           }
         }
 
         console.log("box内の点数:", count);
         // 指定数以上ならbreak
         if (count >= densityThreshold) {
-          // box.setAttribute("material", "depthWrite: false");
-          // box.setAttribute("color", "#ff0000");
-          // box.setAttribute("opacity", "0.5");
-          // raycastVisual.appendChild(box);
-          // break;
+          box.setAttribute("material", "depthWrite: false");
+          box.setAttribute("color", "#ff0000");
+          box.setAttribute("opacity", "0.5");
+          raycastVisual.appendChild(box);
+          break;
         } else {
-          // box.setAttribute("color", "#ff00ff");
-          // box.setAttribute("opacity", "0.2");
-          // box.setAttribute("transparent", "true");
-          // box.setAttribute("material", "depthWrite: false");
-          // raycastVisual.appendChild(box);
+          box.setAttribute("color", "#ff00ff");
+          box.setAttribute("opacity", "0.2");
+          box.setAttribute("transparent", "true");
+          box.setAttribute("material", "depthWrite: false");
+          raycastVisual.appendChild(box);
         }
       }
-      // ループ終了後に必ず更新
-      instancedMesh.count = instanceIndex;
-      instancedMesh.instanceMatrix.needsUpdate = true;
     });
   },
   // also works from vanilla three.js

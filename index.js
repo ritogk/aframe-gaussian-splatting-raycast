@@ -47,10 +47,15 @@ AFRAME.registerComponent("gaussian_splatting", {
         }
         console.log(3);
         // centers点群をTHREE.Pointsで描画
-        const centers = this.getCenters();
+        const centers = this.getCenters().filter((c) => c.opacity > 0.996); // 透明度が0.996以下の点は除外
+        console.log("centers.length", this.getCenters().length);
+        console.log("filteredCenters.length", centers.length);
         if (!centers || centers.length === 0) return;
+
         const positions = new Float32Array(centers.length * 3);
         const colors = new Float32Array(centers.length * 3);
+        const alphas = new Float32Array(centers.length);
+
         // 原点からの最大距離を計算
         let maxDist = 0;
         for (let i = 0; i < centers.length; i++) {
@@ -79,6 +84,10 @@ AFRAME.registerComponent("gaussian_splatting", {
           colors[i * 3] = Math.max(0, 1 - norm * 2); // R: 0~1→1~0
           colors[i * 3 + 1] = norm < 0.5 ? norm * 2 : (1 - norm) * 2; // G: 0~0.5→0~1, 0.5~1→1~0
           colors[i * 3 + 2] = Math.max(0, norm * 2 - 1); // B: 0~0.5→0, 0.5~1→0~1
+
+          // ✨ 各点に保存されている opacity をそのまま渡す
+          alphas[i] =
+            centers[i].opacity !== undefined ? centers[i].opacity : 1.0;
         }
         console.log(5);
         const geometry = new THREE.BufferGeometry();
@@ -87,10 +96,11 @@ AFRAME.registerComponent("gaussian_splatting", {
           new THREE.BufferAttribute(positions, 3)
         );
         geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute("alpha", new THREE.BufferAttribute(alphas, 1));
         console.log(6);
         // Z値で色分け
         const material = new THREE.PointsMaterial({
-          size: 0.001,
+          size: 0.01,
           opacity: 0.7,
           transparent: true,
           vertexColors: true,
@@ -181,7 +191,8 @@ AFRAME.registerComponent("gaussian_splatting", {
       raycastVisual.object3D.add(rayLine);
 
       // centers取得
-      const centers = this.getCenters();
+      // const centers = this.getCenters();
+      const centers = this.getCenters().filter((c) => c.opacity > 0.996);
 
       // Ray上に指定サイズのbox（正方形）を連続生成
       const boxSize = 0.6;
@@ -200,9 +211,10 @@ AFRAME.registerComponent("gaussian_splatting", {
         // box内の点数をカウント
         let count = 0;
         for (let i = 0; i < centers.length; i++) {
-          const x = centers[i].x;
-          const y = centers[i].y;
-          const z = centers[i].z;
+          const centerPosition = centers[i].position;
+          const x = centerPosition.x;
+          const y = centerPosition.y;
+          const z = centerPosition.z;
           // ✨️ここがあっているか
           if (
             Math.abs(pos.x - x) < boxSize / 2 &&

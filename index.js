@@ -195,9 +195,9 @@ AFRAME.registerComponent("gaussian_splatting", {
       const centers = this.getCenters().filter((c) => c.opacity > 0.996);
 
       // Ray上に指定サイズのbox（正方形）を連続生成
-      const boxSize = 0.6;
-      const boxStep = 0.2;
-      const densityThreshold = 5;
+      const boxSize = 0.3;
+      const boxStep = 0.3;
+      const densityThreshold = 10;
       for (let t = 0; t < rayLength; t += boxStep) {
         const pos = rayOrigin.clone().add(rayDir.clone().multiplyScalar(t));
 

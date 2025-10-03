@@ -130,7 +130,10 @@ AFRAME.registerComponent("gaussian_splatting", {
     const scene = this.el.sceneEl;
     const camera = scene.camera;
     const renderer = scene.renderer;
-    let marker = null;
+    this.hitPositions = [];
+    this.markers = [];
+    this.lines = [];
+    this.distanceSprites = [];
     scene.addEventListener("click", (event) => {
       if (!window.raycastEnabled) return;
 
@@ -164,14 +167,64 @@ AFRAME.registerComponent("gaussian_splatting", {
 
         console.log("hit point index:", index, "pos:", hitPos);
 
-        // 可視化用にマーカーを置く
-        if (!marker) {
-          const geom = new THREE.SphereGeometry(0.05, 16, 16);
-          const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-          marker = new THREE.Mesh(geom, mat);
-          scene.object3D.add(marker);
-        }
+        // 可視化用にマーカーを置く（消さずに残す）
+        const geom = new THREE.SphereGeometry(0.05, 16, 16);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const marker = new THREE.Mesh(geom, mat);
         marker.position.copy(hitPos);
+        scene.object3D.add(marker);
+        this.markers.push(marker);
+
+        // 連続する2つのhitPosを保存
+        this.hitPositions.push(hitPos.clone());
+        if (this.hitPositions.length === 2) {
+          // 線を作成（消さずに残す）
+          const points = [this.hitPositions[0], this.hitPositions[1]];
+          const geometry = new THREE.BufferGeometry().setFromPoints(points);
+          const material = new THREE.LineBasicMaterial({
+            color: 0xff0000,
+            linewidth: 20,
+          });
+          const line = new THREE.Line(geometry, material);
+          scene.object3D.add(line);
+          this.lines.push(line);
+
+          // 距離を計算
+          const dist = points[0].distanceTo(points[1]);
+          const distText = dist.toFixed(3);
+          // テキストをcanvasで作成
+          const canvas = document.createElement("canvas");
+          const size = 256;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          ctx.font = "48px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.strokeStyle = "rgba(0,0,0,0.8)";
+          ctx.lineWidth = 6;
+          ctx.strokeText(distText, size / 2, size / 2);
+          ctx.fillText(distText, size / 2, size / 2);
+          // Sprite作成
+          const texture = new THREE.CanvasTexture(canvas);
+          const spriteMaterial = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+          });
+          const sprite = new THREE.Sprite(spriteMaterial);
+          // 線の中央に配置
+          const mid = new THREE.Vector3()
+            .addVectors(points[0], points[1])
+            .multiplyScalar(0.5);
+          sprite.position.copy(mid);
+          sprite.scale.set(0.3, 0.15, 1); // サイズ調整
+          scene.object3D.add(sprite);
+          this.distanceSprites.push(sprite);
+
+          // 配列をリセット
+          this.hitPositions = [];
+        }
       }
     });
   },
